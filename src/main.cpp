@@ -202,9 +202,9 @@ int main() {
   }
   
  
-  
-  
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+	double  ref_vel=49.5;
+    int lane=2;
+  h.onMessage([&lane,&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -257,13 +257,13 @@ int main() {
 			//find ref_v to use
 			for(int i=0; i<sensor_fusion.size(); i++){
 				
-				float d=sensor_fusion.size[i][6];
+				float d=sensor_fusion[i][6];
 				if(d<(2+4*lane+2) && d>(2+4*lane-2)) 
 				{
 					double vx = sensor_fusion[i][3];
 					double vy = sensor_fusion[i][4];
 					double check_speed=sqrt(vx*vx+vy*vy);
-					double check_car_s =sensor_fusion[i][5]
+					double check_car_s =sensor_fusion[i][5];
 					
 					check_car_s+=((double)prev_size*.02*check_speed);
 					
@@ -271,26 +271,78 @@ int main() {
 					{
 						too_close=true;
 						
+						
 					}
 					
 				}
 			}
 
+
+			bool too_close_lane0 = false;
+			bool too_close_lane1 = false;
+			bool too_close_lane2 = false;
+			
+			vector<bool> too_close_all_lanes(3);
+			for(int lanes=0;lanes<3;lanes++){
+			too_close_all_lanes[lanes]=false;}
+			//find ref_v to use
+			for(int i=0; i<sensor_fusion.size(); i++){
+				
+				float d=sensor_fusion[i][6];
+				
+				for(int lanes=0;lanes<3;lanes++){
+				if(d<(2+4*lanes+2) && d>(2+4*lanes-2)) 
+				{
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed=sqrt(vx*vx+vy*vy);
+					double check_car_s =sensor_fusion[i][5];
+					
+					check_car_s+=((double)prev_size*.02*check_speed);
+					
+					if((check_car_s-car_s)>(-20) && ((check_car_s-car_s)<30))
+					{
+						too_close_all_lanes[lanes]=true;
+						
+						
+					}
+					//else{
+							
+					//}
+				}
+			}
+
+}
+
 			if(too_close)
 			{
 				ref_vel-=.224;
+			
+						if(lane==1 && too_close_all_lanes[0]==false){
+							lane=0;
+						}
+						else if(lane==2 && too_close_all_lanes[1]==false){
+							lane=1;
+						}
+						else if(lane==0 && too_close_all_lanes[1]==false){
+							lane=1;
+						}
+						else if(lane==1 && too_close_all_lanes[2]==false){
+							lane=2;
+						}
+			
 			}
 			else if(ref_vel<49.5)
 			{
 				ref_vel+=.224;
 				
 			}
-
+			cout << " lane " << lane << too_close << "\n";
 			vector<double> ptsx;
 			vector<double> ptsy;
 			//int lane=1;
-			int lane=2;
-  			double ref_vel=49.5;
+			
+  			//double ref_vel=49.5;
 			double ref_x = car_x;
 			double ref_y = car_y;
 			double ref_yaw =deg2rad(car_yaw);
