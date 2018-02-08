@@ -20,6 +20,23 @@ constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
 
+
+int indexofSmallestElement(vector<double>& array, int size)
+{
+  int index = 0 ;
+  double n = array[0] ;
+  for (int i = 1; i < size; ++i)
+  {
+    if (array[i] < n)
+    {
+        n = array[i] ;
+        index = i ;
+    }
+  }
+ return index;
+}
+
+
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 // else the empty string "" will be returned.
@@ -202,9 +219,10 @@ int main() {
   }
   
  
-	double  ref_vel=49.5;
-    int lane=2;
-  h.onMessage([&lane,&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+	double  ref_vel=1;
+    int lane=1;
+	int current_state=0;
+  h.onMessage([&lane,&ref_vel,&current_state,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -278,6 +296,9 @@ int main() {
 			}
 
 
+// Earlier version that works for checking all lanes
+///######################################################
+/*
 			bool too_close_lane0 = false;
 			bool too_close_lane1 = false;
 			bool too_close_lane2 = false;
@@ -300,19 +321,19 @@ int main() {
 					
 					check_car_s+=((double)prev_size*.02*check_speed);
 					
-					if((check_car_s-car_s)>(-20) && ((check_car_s-car_s)<30))
+					if((check_car_s-car_s)>(-10) && ((check_car_s-car_s)<30))
 					{
+					
 						too_close_all_lanes[lanes]=true;
-						
+					
 						
 					}
-					//else{
-							
-					//}
+					
 				}
 			}
 
 }
+
 
 			if(too_close)
 			{
@@ -337,7 +358,247 @@ int main() {
 				ref_vel+=.224;
 				
 			}
-			cout << " lane " << lane << too_close << "\n";
+
+
+*/
+// ###################################################################    
+
+// Process sensor fusion data for all lanes for state machine
+
+  			
+ 			bool too_close_lane0 = false;
+			bool too_close_lane1 = false;
+			bool too_close_lane2 = false;
+		
+		
+			
+			vector<bool> too_close_all_lanes(3);
+			vector<bool> too_close_all_lanes_back(3);
+			vector<bool> too_close_all_lanes_front(3);
+			vector<double> closest_car_s(3);
+			vector<double> closest_car_v(3);
+			
+			vector<double> closest_car_back_s(3);
+			vector<double> closest_car_back_v(3);
+			
+			
+			for(int lanes=0;lanes<3;lanes++){
+			too_close_all_lanes[lanes]=false;
+			too_close_all_lanes_front[lanes]=false;
+			too_close_all_lanes_back[lanes]=false;
+			}
+		
+ 			
+			//find ref_v to use
+			for(int i=0; i<sensor_fusion.size(); i++){
+				
+				float d=sensor_fusion[i][6];
+				
+				for(int lanes=0;lanes<3;lanes++){
+				if(d<(2+4*lanes+2) && d>(2+4*lanes-2)) 
+				{
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed=sqrt(vx*vx+vy*vy);
+					double check_car_s =sensor_fusion[i][5];
+					
+					check_car_s+=((double)prev_size*.02*check_speed);
+					
+					// Check cars in front of us on this lane
+					if( (check_car_s-car_s)<30 && (check_car_s-car_s)>0 ) 
+					{
+					if(too_close_all_lanes_front[lanes]==false){
+					// If this is the first car on same lane, set it as the closest car and give its speed
+					too_close_all_lanes_front[lanes]=true;
+					closest_car_s[lanes]=(check_car_s-car_s);
+					closest_car_v[lanes]=check_speed;
+					} else{
+					too_close_all_lanes_front[lanes]=true;
+					// If there's yet another car closer on the same lane, update that one as the closest car and set its speed
+					if((check_car_s-car_s)<closest_car_s[lanes]){
+					closest_car_s[lanes]=(check_car_s-car_s);
+					closest_car_v[lanes]=check_speed;
+					}
+					
+					}
+					// Set that there is a car too close on this lane
+					too_close_all_lanes[lanes]=true;
+											
+					}
+					
+					if((check_car_s-car_s)>(-20) && (check_car_s-car_s)<0)
+					{
+					if(too_close_all_lanes_back[lanes]==false){
+					// If this is the first car on same lane, set it as the closest car and give its speed
+					too_close_all_lanes_back[lanes]=true;
+					closest_car_back_s[lanes]=(check_car_s-car_s);
+					closest_car_back_v[lanes]=check_speed;
+					} else{
+					// If there's yet another car closer on the same lane, update that one as the closest car and set its speed
+					too_close_all_lanes_back[lanes]=true;
+					if((check_car_s-car_s)>closest_car_s[lanes]){
+					closest_car_back_s[lanes]=(check_car_s-car_s);
+					closest_car_back_v[lanes]=check_speed;
+					}
+					
+					}
+					// Set that there is a car too close on this lane
+					too_close_all_lanes_back[lanes]=true;
+					}										
+				}
+			}
+}
+		
+		
+			
+			// ###############################################################
+			
+			
+			
+			// states
+			// 0 keep current lane // 1 prepare to change left // 2 prepare to change right // 3 change to left // 4 change to right
+			// allowed transitions, the transitions to other states will be set to 10 and not touched.
+			// 0 - 0,1,2  
+			// 1 - 1,2,3
+			// 2 - 1. 2, 4
+			// 3 - 0,3
+			// 4 - 0,4
+			
+			//Initialize costs vector
+			vector<double> costs(5);
+			for(int costs_i =0;costs_i<5;costs_i++){
+				costs[costs_i]=10;
+			}
+			
+			switch(current_state)	{
+			
+			case 0:
+			  if(too_close_all_lanes_front[lane]){
+			    costs[0]=0.5; 
+			  }
+			  else{
+			    costs[0]=0;
+			  }
+			 
+			 
+			  if(lane==2){
+			    costs[2]=1;
+			  }else{
+			    costs[2]=0.4;
+			  }
+			  if(lane==0){
+			    costs[1]=1;
+			  }else{
+			    costs[1]=0.3;
+			  }
+			  if(ref_vel<49.5){
+			    ref_vel+=.424;}
+ 			  current_state=indexofSmallestElement(costs,5);
+			  cout << "\n";
+			  for(int iii=0;iii<5;iii++){
+			  	
+				cout << costs[iii] << " ";
+				
+				
+			  }
+			  cout << "smallest index was " << current_state << "\n";
+			  
+			  break;
+			case 1:
+			  if(too_close_all_lanes_front[lane-1]==false && too_close_all_lanes_back[lane-1]==false){
+			    costs[3]=0;
+			  }else{
+			    costs[3]=1;
+			  }
+			  
+			  if(lane==2){
+			    costs[2]=1;
+			  }else{
+			    if(too_close_all_lanes_front[lane+1]==false && too_close_all_lanes_back[lane+1]==false){
+			      costs[2]=0.5;
+			    }else{
+			      costs[2]=1;
+			    }
+			
+			  }
+			  
+			  if(too_close_all_lanes_front[lane]==false ){
+			  	costs[0]=0.8;
+				
+			  }
+			  
+  			  if(ref_vel>closest_car_v[lane]){
+			    ref_vel-=.324;}
+			  else{ref_vel+=.424;}
+			
+			  costs[1]=0.7;
+			
+			
+			current_state=indexofSmallestElement(costs,5);
+			 for(int iii=0;iii<5;iii++){
+			  	
+				cout << costs[iii] << " ";
+				
+				
+			  }
+			  cout << "smallest index was " << current_state << "\n";
+			  break;
+			case 2:
+			  if(too_close_all_lanes_front[lane+1]==false && too_close_all_lanes_back[lane+1]==false){
+			    costs[4]=0;
+			  }else{
+			    costs[4]=1;
+			  }
+			  
+			  if(lane==0){
+			    costs[1]=1;
+			  }else{
+			    if(too_close_all_lanes_front[lane-1]==false && too_close_all_lanes_back[lane-1]==false){
+			      costs[1]=0.5;
+			    }else{
+			      costs[1]=1;
+			    }
+//			  Muista, keskiviiva on 0. Nyt kaikki suunnat on pain mantya
+			  }
+  			  if(ref_vel>closest_car_v[lane]){
+			    ref_vel-=.324;}
+			  else{
+			    ref_vel+=.424;}
+			  costs[2]=0.7;
+			
+			if(too_close_all_lanes_front[lane]==false ){
+			  	costs[0]=0.8;
+				
+			  }
+  			 
+			
+			current_state=indexofSmallestElement(costs,5);
+			 for(int iii=0;iii<5;iii++){
+			  	
+				cout << costs[iii] << " ";
+				
+				
+			  }
+			  cout << "smallest index was " << current_state << "\n";
+			  break;
+			
+			case 3:
+			lane=lane-1;
+			current_state=0;
+			break;
+			
+			case 4:
+			lane=lane+1;
+			current_state=0;
+			break;
+			}
+			
+			cout << "current_state " << current_state << "\n";
+ 			
+
+
+			
+			cout << " lane " << lane << " too close " << too_close << "\n";
 			vector<double> ptsx;
 			vector<double> ptsy;
 			//int lane=1;
@@ -397,6 +658,7 @@ int main() {
 				
 				ptsx[i]=(shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
 				ptsy[i]=(shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
+			    //cout << "points" << ptsx[i] << " "  << ptsy[i] << "\n";
 			}
 			
 			
@@ -438,20 +700,8 @@ int main() {
 				next_x_vals.push_back(x_point);
 				next_y_vals.push_back(y_point);
 			}
-			/*
-double dist_inc = 0.5;
-    for(int i = 0; i < 50; i++)
-    {
-   //       next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-    //      next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-          double next_s=car_s+dist_inc*(i+1);
-		  double next_d=6;
-   	  	  vector<double> xy = getXY(next_s,next_d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
-		  next_x_vals.push_back(xy[0]);
-          next_y_vals.push_back(xy[1]);
-    }
 
-*/
+
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
