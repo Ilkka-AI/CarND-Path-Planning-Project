@@ -218,7 +218,7 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
   
- 
+    // Set staring velocity, starting lane and starting state
 	double  ref_vel=1;
     int lane=1;
 	int current_state=0;
@@ -270,98 +270,9 @@ int main() {
 				
 			}
 
-			bool too_close = false;
 			
-			//find ref_v to use
-			for(int i=0; i<sensor_fusion.size(); i++){
-				
-				float d=sensor_fusion[i][6];
-				if(d<(2+4*lane+2) && d>(2+4*lane-2)) 
-				{
-					double vx = sensor_fusion[i][3];
-					double vy = sensor_fusion[i][4];
-					double check_speed=sqrt(vx*vx+vy*vy);
-					double check_car_s =sensor_fusion[i][5];
-					
-					check_car_s+=((double)prev_size*.02*check_speed);
-					
-					if((check_car_s>car_s) && ((check_car_s-car_s)<30))
-					{
-						too_close=true;
-						
-						
-					}
-					
-				}
-			}
 
 
-// Earlier version that works for checking all lanes
-///######################################################
-/*
-			bool too_close_lane0 = false;
-			bool too_close_lane1 = false;
-			bool too_close_lane2 = false;
-			
-			vector<bool> too_close_all_lanes(3);
-			for(int lanes=0;lanes<3;lanes++){
-			too_close_all_lanes[lanes]=false;}
-			//find ref_v to use
-			for(int i=0; i<sensor_fusion.size(); i++){
-				
-				float d=sensor_fusion[i][6];
-				
-				for(int lanes=0;lanes<3;lanes++){
-				if(d<(2+4*lanes+2) && d>(2+4*lanes-2)) 
-				{
-					double vx = sensor_fusion[i][3];
-					double vy = sensor_fusion[i][4];
-					double check_speed=sqrt(vx*vx+vy*vy);
-					double check_car_s =sensor_fusion[i][5];
-					
-					check_car_s+=((double)prev_size*.02*check_speed);
-					
-					if((check_car_s-car_s)>(-10) && ((check_car_s-car_s)<30))
-					{
-					
-						too_close_all_lanes[lanes]=true;
-					
-						
-					}
-					
-				}
-			}
-
-}
-
-
-			if(too_close)
-			{
-				ref_vel-=.224;
-			
-						if(lane==1 && too_close_all_lanes[0]==false){
-							lane=0;
-						}
-						else if(lane==2 && too_close_all_lanes[1]==false){
-							lane=1;
-						}
-						else if(lane==0 && too_close_all_lanes[1]==false){
-							lane=1;
-						}
-						else if(lane==1 && too_close_all_lanes[2]==false){
-							lane=2;
-						}
-			
-			}
-			else if(ref_vel<49.5)
-			{
-				ref_vel+=.224;
-				
-			}
-
-
-*/
-// ###################################################################    
 
 // Process sensor fusion data for all lanes for state machine
 
@@ -375,13 +286,14 @@ int main() {
 			vector<bool> too_close_all_lanes(3);
 			vector<bool> too_close_all_lanes_back(3);
 			vector<bool> too_close_all_lanes_front(3);
+			// Position and velocity of the closest car in front of us on all lanes
 			vector<double> closest_car_s(3);
 			vector<double> closest_car_v(3);
-			
+			// Position and velocity of the closest car on our back for all lanes
 			vector<double> closest_car_back_s(3);
 			vector<double> closest_car_back_v(3);
 			
-			
+			// initialize vectors
 			for(int lanes=0;lanes<3;lanes++){
 			too_close_all_lanes[lanes]=false;
 			too_close_all_lanes_front[lanes]=false;
@@ -391,56 +303,63 @@ int main() {
 			}
 		
  			
-			//find ref_v to use
+			// Loop through all vehicles detected by sensor fusion and process their posion and velocity data
 			for(int i=0; i<sensor_fusion.size(); i++){
-				
+				// Get Frenet d coordinate, 
 				float d=sensor_fusion[i][6];
 				
+				// Check through all 3 lanes
 				for(int lanes=0;lanes<3;lanes++){
+				// Assign car to a lane according to its position
 				if(d<(2+4*lanes+2) && d>(2+4*lanes-2)) 
 				{
 					double vx = sensor_fusion[i][3];
 					double vy = sensor_fusion[i][4];
+					// Car speed
 					double check_speed=sqrt(vx*vx+vy*vy);
+					// Position s  in Frenet
 					double check_car_s =sensor_fusion[i][5];
-					
+					// Predict future position
 					check_car_s+=((double)prev_size*.02*check_speed);
 					
 					// Check cars in front of us on this lane
 					if( (check_car_s-car_s)<30 && (check_car_s-car_s)>0 ) 
 					{
 					if(too_close_all_lanes_front[lanes]==false){
-					// If this is the first car on same lane, set it as the closest car and give its speed
+					// If this is the first car on same lane, set it as the closest car and assign its speed
 					too_close_all_lanes_front[lanes]=true;
+					// Calculate distance to the car
 					closest_car_s[lanes]=(check_car_s-car_s);
 					closest_car_v[lanes]=check_speed*2.23; // Transform to miles per hour
 					} else{
 					too_close_all_lanes_front[lanes]=true;
-					// If there's yet another car closer on the same lane, update that one as the closest car and set its speed
+					// If there's another car closer on the same lane, update it as the closest car and set its speed
 					if((check_car_s-car_s)<closest_car_s[lanes]){
 					closest_car_s[lanes]=(check_car_s-car_s);
-					closest_car_v[lanes]=check_speed*2.23;
+					closest_car_v[lanes]=check_speed*2.23; // Transform to miles per hour
 					}
 					
 					}
-					// Set that there is a car too close on this lane
+					// Mark that there is a car too close on this lane
 					too_close_all_lanes[lanes]=true;
 											
 					}
 					
+					// Check if the car is behind us
 					if((check_car_s-car_s)>(-20) && (check_car_s-car_s)<0)
 					{
 					if(too_close_all_lanes_back[lanes]==false){
-					// If this is the first car on same lane, set it as the closest car and give its speed
+					// If this is the first car on same lane, set it as the closest car behind us and give its speed
 					too_close_all_lanes_back[lanes]=true;
+					// Calculate distance to the car
 					closest_car_back_s[lanes]=(check_car_s-car_s);
 					closest_car_back_v[lanes]=check_speed*2.23;
 					} else{
-					// If there's yet another car closer on the same lane, update that one as the closest car and set its speed
+					// If there's another car closer behind us on the same lane, update it as the closest car behind us and set its speed
 					too_close_all_lanes_back[lanes]=true;
 					if((check_car_s-car_s)>closest_car_s[lanes]){
 					closest_car_back_s[lanes]=(check_car_s-car_s);
-					closest_car_back_v[lanes]=check_speed*2.23;
+					closest_car_back_v[lanes]=check_speed*2.23;// Transform to miles per hour
 					}
 					
 					}
@@ -454,68 +373,80 @@ int main() {
 		
 			
 			// ###############################################################
+			// Finite state machine
 			
+			// We use a finite state machine with 5 states for behavior planning, each having a cost function to decide possible transions to other states
+			// Some states allow a self-transition, staying in the same state
+			// At each time step we choose the transition that has the lowest cost (can be a self-transition)			
 			
-			
-			// states
+			// The following 5 states are considered
 			// 0 keep current lane // 1 prepare to change left // 2 prepare to change right // 3 change to left // 4 change to right
-			// allowed transitions, the transitions to other states will be set to 10 and not touched.
-			// 0 - 0,1,2  
-			// 1 - 1,2,3
-			// 2 - 1. 2, 4
-			// 3 - 0,3
-			// 4 - 0,4
 			
-			//Initialize costs vector
+			// Allowed transitions are
+			// 0 - 0,1,2  
+			// 1 - 0,1,2,3
+			// 2 - 0,1,2,4
+			// 3 - 0
+			// 4 - 0
+			
+			// Initialize costs vector. Unaccepted transitions are give weight 10 and not touched later.
+			// Allowed transitions will be later given a weight between 0 and 1
 			vector<double> costs(5);
 			for(int costs_i =0;costs_i<5;costs_i++){
 				costs[costs_i]=10;
 			}
 			
+			// Check current state
 			switch(current_state)	{
 			
-			case 0:
+			case 0: // State 0: keep current lane
+			  
 			  if(too_close_all_lanes_front[lane]){
+			  // If there is a car in front of us too close, increase the cost of staying on the lane higher than preparing to change lanes
 			    costs[0]=0.5; 
 			  }
 			  else{
+			  // If there is no car too close in the front, keep on the lane
 			    costs[0]=0;
 			  }
 			 
-			 
+			 // If our car is already on the right, we cannot change right. Otherwise, we can start preparing to change lanes
 			  if(lane==2){
 			    costs[2]=1;
 			  }else{
 			    costs[2]=0.4;
 			  }
+			  // If our car is already on the left, we cannot change left. Otherwise, we can start preparing to change lanes. 
+			  // Chancing to the left is more preferable than changing to the right if both are possible
 			  if(lane==0){
 			    costs[1]=1;
 			  }else{
 			    costs[1]=0.3;
 			  }
+			  
+			  // In state 0, effectively the cost of maintaining a speed lower than allowed has a higher cost than increasing the speed towards the limit
+			  // We increase speed if it is lower than allowed
+			  // Effectively, a speed higher than the limit 49.5mph has an infinite cost and is not possible  
 			  if(ref_vel<49.5){
 			    ref_vel+=.424;}
- 			  current_state=indexofSmallestElement(costs,5);
-			  cout << "\n";
-			  for(int iii=0;iii<5;iii++){
-			  	
-				cout << costs[iii] << " ";
-				
-				
-			  }
-			  cout << "smallest index was " << current_state << "\n";
-			  
+ 			  
+			  // Choose state transion that has the lowest cost
+			  current_state=indexofSmallestElement(costs,5);			    			  
 			  break;
-			case 1:
+			  
+			case 1: // State 1: prepare to change left
+			  // If there isn't a car too close in the front or behind on the left lane, transition to state 3 is preferred
+			  // If too close, transition is denied
 			  if(too_close_all_lanes_front[lane-1]==false && too_close_all_lanes_back[lane-1]==false){
 			    costs[3]=0;
 			  }else{
 			    costs[3]=1;
 			  }
 			  
+			  // If already on the right, cannot transition to state 2
 			  if(lane==2){
 			    costs[2]=1;
-			  }else{
+			  }else{ // Otherwise, we can consider preparing to change right, if it doesnt have another car too close
 			    if(too_close_all_lanes_front[lane+1]==false && too_close_all_lanes_back[lane+1]==false){
 			      costs[2]=0.5;
 			    }else{
@@ -523,38 +454,34 @@ int main() {
 			    }
 			
 			  }
-			  
+			  // If the car in front of gets further away fron us, we can consider transition back to state 0
 			  if(too_close_all_lanes_front[lane]==false ){
 			  	costs[0]=0.8;
 				
 			  }
-			  
+			  // If all cars in front of us on our lane disappear, transition to state 0
 			   if(closest_car_v[lane]==-1){
 			  	costs[0]=0;
 				
 			  }
-			  
+			  // If we are approaching the car, reduce speed until matching velocity
   			  if(ref_vel>closest_car_v[lane]){
 			    ref_vel-=.324;
  			 cout << "car too close, breaking. Closest car vel is " << closest_car_v[lane] << "\n" ;
 				}
+				// Accelerate, if needed, to match speed
 			  else{ref_vel+=.424;
 			  cout << "accelerating again \n";
 			  }
-			
+			  // Stay on this state if other transitions are not preferable
 			  costs[1]=0.7;
 			
-			
-			current_state=indexofSmallestElement(costs,5);
-			 for(int iii=0;iii<5;iii++){
-			  	
-				cout << costs[iii] << " ";
-				
-				
-			  }
-			  cout << "smallest index was " << current_state << "\n";
+			  // Choose the state transition that has the lowest cost
+			  current_state=indexofSmallestElement(costs,5);
 			  break;
-			case 2:
+			  
+			case 2: // State 2: Preparing to change right
+			  // See comments of state 1 (prepare to change left). This is just its mirror image. 
 			  if(too_close_all_lanes_front[lane+1]==false && too_close_all_lanes_back[lane+1]==false){
 			    costs[4]=0;
 			  }else{
@@ -569,7 +496,7 @@ int main() {
 			    }else{
 			      costs[1]=1;
 			    }
-//			  Muista, keskiviiva on 0. Nyt kaikki suunnat on pain mantya
+
 			  }
   			  if(ref_vel>closest_car_v[lane]){
 			    cout << "car too close, breaking. Closest car vel is " << closest_car_v[lane] << "\n" ;
@@ -579,33 +506,28 @@ int main() {
 			    ref_vel+=.424;}
 			  costs[2]=0.7;
 			
-			if(too_close_all_lanes_front[lane]==false ){
+			  if(too_close_all_lanes_front[lane]==false ){
 			  	costs[0]=0.8;
 				
 			  }
   			
-			if(closest_car_v[lane]==-1){
+			  if(closest_car_v[lane]==-1){
 			  	costs[0]=0;
 				
 			  } 
 			
-			current_state=indexofSmallestElement(costs,5);
-			 for(int iii=0;iii<5;iii++){
-			  	
-				cout << costs[iii] << " ";
-				
-				
-			  }
-			  cout << "smallest index was " << current_state << "\n";
+			  current_state=indexofSmallestElement(costs,5);
 			  break;
 			
-			case 3:
+			case 3: // State 3: change to left
 			lane=lane-1;
+			// The only possible action is to change to left and transition back to state 0 
 			current_state=0;
 			break;
 			
-			case 4:
+			case 4: //State 4: change to right
 			lane=lane+1;
+			// The only possible action is to change to right and transition back to state 0 
 			current_state=0;
 			break;
 			}
@@ -614,13 +536,11 @@ int main() {
  			
 
 
-			
-			cout << " lane " << lane << " too close " << too_close << "\n";
+		   // As trajectory generation I just use the method presented in the project walkthrough
+		   // It needs as inputs the chosen reference speed and lane to follow (or change to) 
 			vector<double> ptsx;
 			vector<double> ptsy;
-			//int lane=1;
-			
-  			//double ref_vel=49.5;
+					  			
 			double ref_x = car_x;
 			double ref_y = car_y;
 			double ref_yaw =deg2rad(car_yaw);
@@ -675,15 +595,14 @@ int main() {
 				
 				ptsx[i]=(shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
 				ptsy[i]=(shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
-			    //cout << "points" << ptsx[i] << " "  << ptsy[i] << "\n";
+			    
 			}
 			
 			
 			tk::spline s;
 			s.set_points(ptsx,ptsy);
 			
-			//vector<double> next_x_vals;
-			//vector<double> next_y_vals;
+			
 			
 			for(int i=0;i<previous_path_x.size();i++){
 				
