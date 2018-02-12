@@ -386,6 +386,8 @@ int main() {
 			too_close_all_lanes[lanes]=false;
 			too_close_all_lanes_front[lanes]=false;
 			too_close_all_lanes_back[lanes]=false;
+			closest_car_v[lanes]=-1;
+		
 			}
 		
  			
@@ -411,13 +413,13 @@ int main() {
 					// If this is the first car on same lane, set it as the closest car and give its speed
 					too_close_all_lanes_front[lanes]=true;
 					closest_car_s[lanes]=(check_car_s-car_s);
-					closest_car_v[lanes]=check_speed;
+					closest_car_v[lanes]=check_speed*2.23; // Transform to miles per hour
 					} else{
 					too_close_all_lanes_front[lanes]=true;
 					// If there's yet another car closer on the same lane, update that one as the closest car and set its speed
 					if((check_car_s-car_s)<closest_car_s[lanes]){
 					closest_car_s[lanes]=(check_car_s-car_s);
-					closest_car_v[lanes]=check_speed;
+					closest_car_v[lanes]=check_speed*2.23;
 					}
 					
 					}
@@ -432,13 +434,13 @@ int main() {
 					// If this is the first car on same lane, set it as the closest car and give its speed
 					too_close_all_lanes_back[lanes]=true;
 					closest_car_back_s[lanes]=(check_car_s-car_s);
-					closest_car_back_v[lanes]=check_speed;
+					closest_car_back_v[lanes]=check_speed*2.23;
 					} else{
 					// If there's yet another car closer on the same lane, update that one as the closest car and set its speed
 					too_close_all_lanes_back[lanes]=true;
 					if((check_car_s-car_s)>closest_car_s[lanes]){
 					closest_car_back_s[lanes]=(check_car_s-car_s);
-					closest_car_back_v[lanes]=check_speed;
+					closest_car_back_v[lanes]=check_speed*2.23;
 					}
 					
 					}
@@ -527,9 +529,18 @@ int main() {
 				
 			  }
 			  
+			   if(closest_car_v[lane]==-1){
+			  	costs[0]=0;
+				
+			  }
+			  
   			  if(ref_vel>closest_car_v[lane]){
-			    ref_vel-=.324;}
-			  else{ref_vel+=.424;}
+			    ref_vel-=.324;
+ 			 cout << "car too close, breaking. Closest car vel is " << closest_car_v[lane] << "\n" ;
+				}
+			  else{ref_vel+=.424;
+			  cout << "accelerating again \n";
+			  }
 			
 			  costs[1]=0.7;
 			
@@ -561,8 +572,10 @@ int main() {
 //			  Muista, keskiviiva on 0. Nyt kaikki suunnat on pain mantya
 			  }
   			  if(ref_vel>closest_car_v[lane]){
-			    ref_vel-=.324;}
+			    cout << "car too close, breaking. Closest car vel is " << closest_car_v[lane] << "\n" ;
+				ref_vel-=.324;}
 			  else{
+			    cout << "accelerating again \n";
 			    ref_vel+=.424;}
 			  costs[2]=0.7;
 			
@@ -570,7 +583,11 @@ int main() {
 			  	costs[0]=0.8;
 				
 			  }
-  			 
+  			
+			if(closest_car_v[lane]==-1){
+			  	costs[0]=0;
+				
+			  } 
 			
 			current_state=indexofSmallestElement(costs,5);
 			 for(int iii=0;iii<5;iii++){
