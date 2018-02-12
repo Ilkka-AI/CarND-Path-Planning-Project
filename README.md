@@ -32,7 +32,7 @@ transition to 2: 1 if already on the rightmost lane, 0.4 otherwise (prefer passi
 
 State 1: <br />
 transition to 1: 0.7 <br />
-transition to 3: 1 if a car too close on the lane to the left (front or behind), 0 otherwise <br />
+transition to 3: 1 if a car too close on the lane to the left (front or behind), 0 otherwise (way clear) <br />
 transition to 2: 1 if already on the rightmost lane, 1 if a car too close on the lane to the right (front or behind), 0.5 otherwise <br />
 transition to 0: 0 if no cars on sight on our lane (anymore) <br />
  <br />
