@@ -26,7 +26,7 @@ Allowed transitions are <br />
 The costs of allowed transitions are between 0 and 1. A cost of 1 means transition denied. The following costs are used: <br />
 <br />
 State 0: <br /> 
-transition to 0: 0 if lane clear, 0.5 if a car in front. <br />
+transition to 0: 0 if lane clear, 0.5 if a car in front too close. <br />
 transition to 1: 1 if already on the leftmost lane,  0.3 otherwise <br />
 transition to 2: 1 if already on the rightmost lane, 0.4 otherwise (prefer passing from the left) <br />
 
