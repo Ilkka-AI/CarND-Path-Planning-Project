@@ -27,10 +27,22 @@ The costs of allowed transitions are between 0 and 1. A cost of 1 means transiti
 <br />
 State 0: <br /> 
 transition to 0: 0 if lane clear, 0.5 if a car in front. <br />
-transition to 1: 1 if already on the leftmost lane, 1 if a car too close (front or back) on the lane to the left, 0.3 if way clear <br />
-transition to 2: 1 if already on the rightmost lane, 1 if a car too close on the lane to the right, 0.4 if way clear <br />
+transition to 1: 1 if already on the leftmost lane,  0.3 otherwise <br />
+transition to 2: 1 if already on the rightmost lane, 0.4 otherwise (prefer passing fron the left) <br />
 
-State 1:
+State 1: <br />
+transition to 1: 0.7 <br />
+transition to 3: 1 if a car too close on the lane to the left (front or behind), 0 otherwise <br />
+transition to 2: 1 if already on the rightmost lane, 1 if a car too close on the lane to the right (front or behind), 0.5 otherwise <br />
+transition to 0: 0 if no cars on sight on our lane (anymore) <br />
+ <br />
+State 3:  <br />
+transition to 0: 0, being the only allowed transition. Action: change lane to left. <br />
+<br />
+State 2: <br />
+Same as State 1 but opposite direction <br />
+State 4:
+Same as State 3 but opposite
 
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
