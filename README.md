@@ -23,12 +23,12 @@ Allowed transitions are <br />
 3 -> 0 <br />
 4 -> 0 <br />
 
-The costs of allowed transitions are between 0 and 1. A cost of 1 means transition denied.The following costs are used: <br />
+The costs of allowed transitions are between 0 and 1. A cost of 1 means transition denied. The following costs are used: <br />
 <br />
 State 0: <br /> 
 transition to 0: 0 if lane clear, 0.5 if a car in front. <br />
 transition to 1: 1 if already on the leftmost lane,  0.3 otherwise <br />
-transition to 2: 1 if already on the rightmost lane, 0.4 otherwise (prefer passing fron the left) <br />
+transition to 2: 1 if already on the rightmost lane, 0.4 otherwise (prefer passing from the left) <br />
 
 State 1: <br />
 transition to 1: 0.7 <br />
@@ -40,9 +40,17 @@ State 3:  <br />
 transition to 0: 0, being the only allowed transition. Action: change lane to left. <br />
 <br />
 State 2: <br />
-Same as State 1 but opposite direction <br />
-State 4:
-Same as State 3 but opposite
+Same as state 1 but opposite direction <br />
+<br />
+State 4:  <br />
+Same as state 3 but opposite direction
+<br />
+<br />
+For speed:  <br />
+In states 1 and 2, match speed with the car in front  <br />
+In state 0, accelerate until v=49.5mph <br />
+<br />
+For trajectory generation I used the calculations provided in the project walkthrough instructions. The method generates a path in Frenet coordinates given the reference speed and the desired lane (or a lane change instruction).  <br />
 
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
