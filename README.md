@@ -23,6 +23,13 @@ Allowed transitions are <br />
 3 -> 0 <br />
 4 -> 0 <br />
 
+The costs of allowed transitions are between 0 and 1. A cost of 1 means transition denied.The following costs are used: <br />
+State 0: 
+transition to 0: 0 if lane clear, 0.5 if a car in front. 
+transition to 1: 1 if already on the leftmost lane, 1 if a car too close (front or back) on the lane to the left, 0.3 if way clear <br />
+transition to 2: 1 if already on the rightmost lane, 1 if a car too close on the lane to the right, 0.4 if way clear <br />
+
+State 1:
 
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
