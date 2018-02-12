@@ -37,7 +37,7 @@ transition to 2: 1 if already on the rightmost lane, 1 if a car too close on the
 transition to 0: 0 if no cars on sight on our lane (anymore) <br />
  <br />
 State 3:  <br />
-transition to 0: 0, being the only allowed transition. Action: change lane to left. <br />
+transition to 0: 0, being the only allowed transition. Action: change lane to the left. <br />
 <br />
 State 2: <br />
 Same as state 1 but opposite direction <br />
